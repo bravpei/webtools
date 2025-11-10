@@ -4,19 +4,8 @@ import (
 	"errors"
 	"github.com/gookit/validate"
 	"github.com/kataras/iris/v12"
-	"github.com/liupei0210/webtools/external/pkg/response"
-	"github.com/liupei0210/webtools/external/pkg/utils"
-)
-
-type binding int8
-
-const (
-	NoParam binding = iota
-	BodyParam
-	PathParam
-	QueryParam
-	FormParam
-	HeaderParam
+	"github.com/bravpei/webtools/external/pkg/response"
+	"github.com/bravpei/webtools/external/pkg/utils"
 )
 
 // ControllerTemplate is a template function for handling requests with JSON parameters.
