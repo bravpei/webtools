@@ -1,38 +1,67 @@
 package utils
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
+var defaultLogger *slog.Logger
+
 func InitLogs() {
-	log.SetReportCaller(true)
-	log.SetFormatter(&CustomFormatter{})
-}
-func SetLogLevel(level uint32) {
-	log.SetLevel(log.Level(level))
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+	handler := &CustomHandler{
+		handler: slog.NewTextHandler(os.Stdout, opts),
+	}
+	defaultLogger = slog.New(handler)
 }
 
-type CustomFormatter struct{}
+func SetLogLevel(level slog.Level) {
+	if defaultLogger == nil {
+		InitLogs()
+	}
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
+	handler := &CustomHandler{
+		handler: slog.NewTextHandler(os.Stdout, opts),
+	}
+	defaultLogger = slog.New(handler)
+}
 
-func (f *CustomFormatter) Format(entry *log.Entry) ([]byte, error) {
+type CustomHandler struct {
+	handler slog.Handler
+}
+
+func (h *CustomHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.handler.Enabled(ctx, level)
+}
+
+func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 	// 时间格式：YYYY-MM-DD HH:MM:SS
-	timestamp := entry.Time.Format(time.DateTime)
+	timestamp := r.Time.Format(time.DateTime)
 
 	// 日志级别（大写）
-	level := strings.ToUpper(entry.Level.String())
+	level := strings.ToUpper(r.Level.String())
 
 	// 获取调用者信息（文件名和行号）
 	file := ""
 	line := 0
-	if entry.HasCaller() {
-		// 只取文件名，不显示完整路径
-		file = filepath.Base(entry.Caller.File)
-		line = entry.Caller.Line
+	if r.PC != 0 {
+		fs := runtime.CallersFrames([]uintptr{r.PC})
+		f, _ := fs.Next()
+		if f.File != "" {
+			// 只取文件名，不显示完整路径
+			file = filepath.Base(f.File)
+			line = f.Line
+		}
 	}
 
 	// 构造日志格式
@@ -42,11 +71,28 @@ func (f *CustomFormatter) Format(entry *log.Entry) ([]byte, error) {
 		level,
 		file,
 		line,
-		entry.Message,
+		r.Message,
 	)
 
-	return []byte(logMsg), nil
+	fmt.Print(logMsg)
+	return nil
 }
-func GetLogger() *log.Logger {
-	return log.StandardLogger()
+
+func (h *CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &CustomHandler{
+		handler: h.handler.WithAttrs(attrs),
+	}
+}
+
+func (h *CustomHandler) WithGroup(name string) slog.Handler {
+	return &CustomHandler{
+		handler: h.handler.WithGroup(name),
+	}
+}
+
+func GetLogger() *slog.Logger {
+	if defaultLogger == nil {
+		InitLogs()
+	}
+	return defaultLogger
 }

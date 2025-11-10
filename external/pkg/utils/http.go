@@ -140,7 +140,7 @@ func (w *HttpClientWrapper) request(method, api string, header map[string]string
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}
-	GetLogger().Debugf("发送HTTP请求-method:%s url:%s body:%s", method, apiURL, string(body))
+	GetLogger().Debug("发送HTTP请求", "method", method, "url", apiURL, "body", string(body))
 	return w.doWithRetry(req)
 }
 
@@ -150,7 +150,7 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 	if err != nil {
 		return
 	}
-	GetLogger().Debugf("url:%s,responseStatus:%d,responseBody: %s", response.Request.URL, response.StatusCode, string(bodyBytes))
+	GetLogger().Debug("HTTP响应", "url", response.Request.URL, "status", response.StatusCode, "body", string(bodyBytes))
 	if response.StatusCode != http.StatusOK {
 		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes)))
 		return

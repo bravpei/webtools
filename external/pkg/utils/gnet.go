@@ -214,7 +214,7 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 	select {
 	case err := <-done:
 		if err != nil {
-			GetLogger().Errorf("websocket upgrade failed: %v", err)
+			GetLogger().Error("websocket upgrade failed", "error", err)
 			return err
 		}
 		w.upgraded = true
@@ -242,7 +242,7 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 				}
 			}
 			if err = wsutil.HandleClientControlMessage(c, message); err != nil {
-				GetLogger().Debugf("handle control message error: %v", err)
+				GetLogger().Debug("handle control message error", "error", err)
 			}
 			continue
 		}

@@ -35,26 +35,26 @@ func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
 }
 func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 	if err != nil && !errors.Is(err, io.EOF) {
-		GetLogger().Debugf("error occurred on connection=%s, %s", c.RemoteAddr().String(), err.Error())
+		GetLogger().Debug("连接错误", "address", c.RemoteAddr().String(), "error", err.Error())
 	}
 	atomic.AddInt64(&s.connected, -1)
-	GetLogger().Debugf("conn[%v] disconnected", c.RemoteAddr().String())
+	GetLogger().Debug("连接断开", "address", c.RemoteAddr().String())
 	return gnet.None
 }
 func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
-	GetLogger().Infof("[connected-count=%v]", atomic.LoadInt64(&s.connected))
+	GetLogger().Info("连接计数", "count", atomic.LoadInt64(&s.connected))
 	return time.Minute, gnet.None
 }
 func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	err := s.gNetUtil.HandleWsTraffic(c, func(message []byte) {
 		err := wsutil.WriteServerText(c, message)
 		if err != nil {
-			GetLogger().Error(err)
+			GetLogger().Error("写入消息失败", "error", err)
 			return
 		}
 	})
 	if err != nil {
-		GetLogger().Error(err)
+		GetLogger().Error("处理流量失败", "error", err)
 		return gnet.Close
 	}
 	return gnet.None
@@ -79,7 +79,7 @@ func (s *Server) startPing(ctx *WSContext) {
 			ctx.PongState = false
 			err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
 			if err != nil {
-				GetLogger().Error(err)
+				GetLogger().Error("发送ping帧失败", "error", err)
 				_ = ctx.Close()
 				return
 			}
@@ -92,7 +92,7 @@ func (s *Server) startPing(ctx *WSContext) {
 	}
 	err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
 	if err != nil {
-		GetLogger().Error(err)
+		GetLogger().Error("初始化ping失败", "error", err)
 		_ = ctx.Close()
 		return
 	}

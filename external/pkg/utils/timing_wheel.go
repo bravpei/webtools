@@ -108,7 +108,7 @@ type task struct {
 func (t *task) handle() {
 	defer func() {
 		if r := recover(); r != nil {
-			GetLogger().Errorf("任务处理发生panic: %v", r)
+			GetLogger().Error("任务处理发生panic", "error", r)
 		}
 	}()
 	t.handler(t.data, t.tw)
@@ -193,7 +193,7 @@ func (tw *TimingWheel) run() {
 			if tw.pool != nil {
 				tw.pool.Release()
 			}
-			GetLogger().Info("时间轮已停止!")
+			GetLogger().Info("时间轮已停止")
 			return
 		}
 	}
@@ -338,7 +338,7 @@ func (tw *TimingWheel) handleTaskError(t *task, err error) {
 	if tw.submitErrHandler != nil {
 		tw.submitErrHandler(t.data, err)
 	} else {
-		GetLogger().Errorf("提交任务到协程池失败: %v", err)
+		GetLogger().Error("提交任务到协程池失败", "error", err)
 	}
 }
 
@@ -346,7 +346,7 @@ func (tw *TimingWheel) reinsertTask(t *task) {
 	node := tw.nodes[(tw.current+1)%tw.scale]
 	node.lock.Lock()
 	if tw.maxTasksPerSlot > 0 && len(node.tasks) >= tw.maxTasksPerSlot {
-		GetLogger().Warnf("槽位任务数超过限制: %d", tw.maxTasksPerSlot)
+		GetLogger().Warn("槽位任务数超过限制", "maxTasks", tw.maxTasksPerSlot)
 	}
 	node.tasks = append(node.tasks, t)
 	node.lock.Unlock()

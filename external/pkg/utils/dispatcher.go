@@ -40,7 +40,7 @@ func processTasks(ch <-chan DispatcherTask) {
 	for task := range ch {
 		err := task.F(task.Key, task.Data)
 		if err != nil {
-			GetLogger().Error(err)
+			GetLogger().Error("处理任务失败", "key", task.Key, "error", err)
 			continue
 		}
 	}
@@ -51,7 +51,7 @@ func (d *Dispatcher) Dispatch(t DispatcherTask) (err error) {
 	shard := hash(t.Key) % d.numShards
 	select {
 	case d.shards[shard] <- t:
-		GetLogger().Infof("%s:提交%s任务到分片-%d:成功,chan长度:%d", t.Key, d.name, shard, len(d.shards[shard]))
+		GetLogger().Info("提交任务到分片成功", "key", t.Key, "name", d.name, "shard", shard, "channelLength", len(d.shards[shard]))
 	default:
 		err = fmt.Errorf("%s:提交%s任务到分片-%d:失败,chan长度:%d", t.Key, d.name, shard, len(d.shards[shard]))
 	}
@@ -63,7 +63,7 @@ func hash(s string) uint32 {
 	h := fnv.New32a()
 	_, err := h.Write([]byte(s))
 	if err != nil {
-		GetLogger().Error()
+		GetLogger().Error("计算哈希值失败", "error", err)
 	}
 	return h.Sum32()
 }

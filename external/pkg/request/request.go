@@ -14,14 +14,14 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, f func(p Params) (
 
 	// Parameter parsing
 	if err := ctx.ReadBody(&params); err != nil {
-		utils.GetLogger().Errorf("Failed to parse parameters: %v", err)
+		utils.GetLogger().Error("Failed to parse parameters", "error", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
 
 	// Parameter validation
 	if err := validateParams(params); err != nil {
-		utils.GetLogger().Errorf("Failed to validate parameters: %v", err)
+		utils.GetLogger().Error("Failed to validate parameters", "error", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
@@ -29,7 +29,7 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, f func(p Params) (
 	// Business logic processing
 	data, err := f(params)
 	if err != nil {
-		utils.GetLogger().Errorf("Failed to process business logic: %v", err)
+		utils.GetLogger().Error("Failed to process business logic", "error", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
