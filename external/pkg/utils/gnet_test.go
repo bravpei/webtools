@@ -7,6 +7,7 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
 	"io"
+	"log/slog"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,26 +36,26 @@ func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
 }
 func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 	if err != nil && !errors.Is(err, io.EOF) {
-		GetLogger().Debug("连接错误", "address", c.RemoteAddr().String(), "error", err.Error())
+		slog.Debug("连接错误", "address", c.RemoteAddr().String(), "error", err.Error())
 	}
 	atomic.AddInt64(&s.connected, -1)
-	GetLogger().Debug("连接断开", "address", c.RemoteAddr().String())
+	slog.Debug("连接断开", "address", c.RemoteAddr().String())
 	return gnet.None
 }
 func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
-	GetLogger().Info("连接计数", "count", atomic.LoadInt64(&s.connected))
+	slog.Info("连接计数", "count", atomic.LoadInt64(&s.connected))
 	return time.Minute, gnet.None
 }
 func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	err := s.gNetUtil.HandleWsTraffic(c, func(message []byte) {
 		err := wsutil.WriteServerText(c, message)
 		if err != nil {
-			GetLogger().Error("写入消息失败", "error", err)
+			slog.Error("写入消息失败", "error", err)
 			return
 		}
 	})
 	if err != nil {
-		GetLogger().Error("处理流量失败", "error", err)
+		slog.Error("处理流量失败", "error", err)
 		return gnet.Close
 	}
 	return gnet.None
@@ -79,7 +80,7 @@ func (s *Server) startPing(ctx *WSContext) {
 			ctx.PongState = false
 			err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
 			if err != nil {
-				GetLogger().Error("发送ping帧失败", "error", err)
+				slog.Error("发送ping帧失败", "error", err)
 				_ = ctx.Close()
 				return
 			}
@@ -92,7 +93,7 @@ func (s *Server) startPing(ctx *WSContext) {
 	}
 	err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
 	if err != nil {
-		GetLogger().Error("初始化ping失败", "error", err)
+		slog.Error("初始化ping失败", "error", err)
 		_ = ctx.Close()
 		return
 	}

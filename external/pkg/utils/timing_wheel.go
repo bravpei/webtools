@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -108,7 +109,7 @@ type task struct {
 func (t *task) handle() {
 	defer func() {
 		if r := recover(); r != nil {
-			GetLogger().Error("任务处理发生panic", "error", r)
+			slog.Error("任务处理发生panic", "error", r)
 		}
 	}()
 	t.handler(t.data, t.tw)
@@ -193,7 +194,7 @@ func (tw *TimingWheel) run() {
 			if tw.pool != nil {
 				tw.pool.Release()
 			}
-			GetLogger().Info("时间轮已停止")
+			slog.Info("时间轮已停止")
 			return
 		}
 	}
@@ -338,7 +339,7 @@ func (tw *TimingWheel) handleTaskError(t *task, err error) {
 	if tw.submitErrHandler != nil {
 		tw.submitErrHandler(t.data, err)
 	} else {
-		GetLogger().Error("提交任务到协程池失败", "error", err)
+		slog.Error("提交任务到协程池失败", "error", err)
 	}
 }
 
@@ -346,7 +347,7 @@ func (tw *TimingWheel) reinsertTask(t *task) {
 	node := tw.nodes[(tw.current+1)%tw.scale]
 	node.lock.Lock()
 	if tw.maxTasksPerSlot > 0 && len(node.tasks) >= tw.maxTasksPerSlot {
-		GetLogger().Warn("槽位任务数超过限制", "maxTasks", tw.maxTasksPerSlot)
+		slog.Warn("槽位任务数超过限制", "maxTasks", tw.maxTasksPerSlot)
 	}
 	node.tasks = append(node.tasks, t)
 	node.lock.Unlock()

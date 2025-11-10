@@ -21,6 +21,8 @@ func InitLogs() {
 		handler: slog.NewTextHandler(os.Stdout, opts),
 	}
 	defaultLogger = slog.New(handler)
+	// 设置为全局默认logger
+	slog.SetDefault(defaultLogger)
 }
 
 func SetLogLevel(level slog.Level) {
@@ -34,6 +36,8 @@ func SetLogLevel(level slog.Level) {
 		handler: slog.NewTextHandler(os.Stdout, opts),
 	}
 	defaultLogger = slog.New(handler)
+	// 更新全局默认logger
+	slog.SetDefault(defaultLogger)
 }
 
 type CustomHandler struct {
@@ -88,11 +92,4 @@ func (h *CustomHandler) WithGroup(name string) slog.Handler {
 	return &CustomHandler{
 		handler: h.handler.WithGroup(name),
 	}
-}
-
-func GetLogger() *slog.Logger {
-	if defaultLogger == nil {
-		InitLogs()
-	}
-	return defaultLogger
 }

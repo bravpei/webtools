@@ -10,6 +10,7 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sync"
@@ -207,14 +208,14 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 				return
 			}
 		}
-		GetLogger().Debug("WebSocket upgrade successful")
+		slog.Debug("WebSocket upgrade successful")
 		done <- nil
 	}()
 
 	select {
 	case err := <-done:
 		if err != nil {
-			GetLogger().Error("websocket upgrade failed", "error", err)
+			slog.Error("websocket upgrade failed", "error", err)
 			return err
 		}
 		w.upgraded = true
@@ -242,7 +243,7 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 				}
 			}
 			if err = wsutil.HandleClientControlMessage(c, message); err != nil {
-				GetLogger().Debug("handle control message error", "error", err)
+				slog.Debug("handle control message error", "error", err)
 			}
 			continue
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -47,7 +48,7 @@ func (l *ConfigLoader[T]) LoadFromPaths(paths ...string) (T, error) {
 	var lastErr error
 	for _, path := range paths {
 		if err := l.loadFromPath(path); err != nil {
-			GetLogger().Warn("从路径加载配置失败", "path", path, "error", err)
+			slog.Warn("从路径加载配置失败", "path", path, "error", err)
 			lastErr = err
 			continue
 		}
@@ -86,7 +87,7 @@ func (l *ConfigLoader[T]) loadFromPath(path string) error {
 		return fmt.Errorf("解析YAML失败: %v", err)
 	}
 
-	GetLogger().Info("成功加载配置文件", "path", path)
+	slog.Info("成功加载配置文件", "path", path)
 	return nil
 }
 
@@ -141,7 +142,7 @@ func (l *ConfigLoader[T]) SaveConfig() error {
 		return fmt.Errorf("写入配置文件失败: %v", err)
 	}
 
-	GetLogger().Info("成功保存配置到", "path", l.configPath)
+	slog.Info("成功保存配置到", "path", l.configPath)
 	return nil
 }
 
