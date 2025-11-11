@@ -68,9 +68,9 @@ func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		}
 	}
 
-	// 构造日志格式
+	// 构造基本日志格式
 	logMsg := fmt.Sprintf(
-		"%s [%s] [%s:%d] %s\n",
+		"%s [%s] [%s:%d] %s",
 		timestamp,
 		level,
 		file,
@@ -78,6 +78,31 @@ func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		r.Message,
 	)
 
+	// 统一处理所有日志属性（包括错误信息）
+	r.Attrs(func(attr slog.Attr) bool {
+		switch attr.Value.Kind() {
+		case slog.KindString:
+			logMsg += fmt.Sprintf(" %s: %s", attr.Key, attr.Value.String())
+		case slog.KindInt64:
+			logMsg += fmt.Sprintf(" %s: %d", attr.Key, attr.Value.Int64())
+		case slog.KindFloat64:
+			logMsg += fmt.Sprintf(" %s: %f", attr.Key, attr.Value.Float64())
+		case slog.KindBool:
+			logMsg += fmt.Sprintf(" %s: %t", attr.Key, attr.Value.Bool())
+		case slog.KindAny:
+			// 处理错误类型和其他任意类型
+			if err, ok := attr.Value.Any().(error); ok {
+				logMsg += fmt.Sprintf(" %s: %s", attr.Key, err.Error())
+			} else {
+				logMsg += fmt.Sprintf(" %s: %v", attr.Key, attr.Value.Any())
+			}
+		default:
+			logMsg += fmt.Sprintf(" %s: %v", attr.Key, attr.Value)
+		}
+		return true
+	})
+
+	logMsg += "\n"
 	fmt.Print(logMsg)
 	return nil
 }
