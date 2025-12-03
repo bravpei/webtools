@@ -10,10 +10,10 @@ const (
 )
 
 type Result struct {
-	Status  Status      `json:"status"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-	TraceId string      `json:"trace_id,omitempty"`
+	Status  Status `json:"status"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
+	TraceId string `json:"trace_id,omitempty"`
 }
 
 var statusMessages = map[Status]string{
@@ -23,7 +23,7 @@ var statusMessages = map[Status]string{
 	serverError:     "serverError",
 }
 
-func Succeed(data interface{}) Result {
+func Succeed(data any) Result {
 	return Result{
 		Status:  success,
 		Message: statusMessages[success],
@@ -31,10 +31,11 @@ func Succeed(data interface{}) Result {
 	}
 }
 
-func Fail(message string) Result {
+func Fail(message string, data any) Result {
 	return Result{
 		Status:  failure,
 		Message: message,
+		Data:    data,
 	}
 }
 
