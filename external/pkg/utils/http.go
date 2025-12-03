@@ -152,8 +152,8 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 		return
 	}
 	slog.Debug("HTTP响应", "url", response.Request.URL, "status", response.StatusCode, "body", string(bodyBytes))
-	if response.StatusCode != http.StatusOK {
-		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes)))
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		err = fmt.Errorf("reponse:%s, status not 200 or 201,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes))
 		return
 	}
 	err = json.Unmarshal(bodyBytes, &body)
