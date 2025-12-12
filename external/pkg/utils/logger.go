@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-var defaultLogger *slog.Logger
-
 func createLogger(level slog.Level) *slog.Logger {
 	opts := &slog.HandlerOptions{
 		Level: level,
@@ -27,11 +25,11 @@ func createLogger(level slog.Level) *slog.Logger {
 }
 
 func InitLogs() {
-	defaultLogger = createLogger(slog.LevelInfo)
+	createLogger(slog.LevelInfo)
 }
 
 func SetLogLevel(level slog.Level) {
-	defaultLogger = createLogger(level)
+	createLogger(level)
 }
 
 type CustomHandler struct {
