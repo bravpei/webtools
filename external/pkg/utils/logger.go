@@ -13,31 +13,25 @@ import (
 
 var defaultLogger *slog.Logger
 
-func InitLogs() {
-	opts := &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}
-	handler := &CustomHandler{
-		handler: slog.NewTextHandler(os.Stdout, opts),
-	}
-	defaultLogger = slog.New(handler)
-	// 设置为全局默认logger
-	slog.SetDefault(defaultLogger)
-}
-
-func SetLogLevel(level slog.Level) {
-	if defaultLogger == nil {
-		InitLogs()
-	}
+func createLogger(level slog.Level) *slog.Logger {
 	opts := &slog.HandlerOptions{
 		Level: level,
 	}
 	handler := &CustomHandler{
 		handler: slog.NewTextHandler(os.Stdout, opts),
 	}
-	defaultLogger = slog.New(handler)
-	// 更新全局默认logger
-	slog.SetDefault(defaultLogger)
+	logger := slog.New(handler)
+	// 设置为全局默认logger
+	slog.SetDefault(logger)
+	return logger
+}
+
+func InitLogs() {
+	defaultLogger = createLogger(slog.LevelInfo)
+}
+
+func SetLogLevel(level slog.Level) {
+	defaultLogger = createLogger(level)
 }
 
 type CustomHandler struct {
