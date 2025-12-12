@@ -64,7 +64,7 @@ func (j *JwtUtil) Generate(info any) (string, error) {
 }
 
 func (j *JwtUtil) Parse(tokenStr string) (info any, err error) {
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
