@@ -9,8 +9,8 @@ import (
 // DispatcherTask 包含需要执行的函数和数据
 type DispatcherTask struct {
 	Key  string                          // 任务的标识键
-	Data interface{}                     // 任务数据
-	F    func(string, interface{}) error // 处理函数
+	Data any                     // 任务数据
+	F    func(string, any) error // 处理函数
 }
 
 // Dispatcher 用于分发任务到对应的协程
@@ -28,7 +28,7 @@ func NewDispatcher(name string, numShards, size uint32) *Dispatcher {
 		name:      name,
 	}
 	// 初始化每个分片的通道，并启动处理协程
-	for i := uint32(0); i < numShards; i++ {
+	for i := range numShards {
 		ch := make(chan DispatcherTask, size) // 带缓冲的通道
 		d.shards[i] = ch
 		go processTasks(ch)
