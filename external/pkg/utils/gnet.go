@@ -238,7 +238,7 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 		if message.OpCode.IsControl() {
 			//心跳处理，如果有设置心跳
 			if message.OpCode == ws.OpPong {
-				if w.PongState == false {
+				if !w.PongState {
 					w.PongState = true
 				}
 			}

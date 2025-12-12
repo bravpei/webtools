@@ -6,7 +6,7 @@ import (
 )
 
 // Template 优化分页查询模板函数
-func Template[T interface{}](req Req, handler func() (*gorm.DB, error)) (page Page[T], err error) {
+func Template[T any](req Req, handler func() (*gorm.DB, error)) (page Page[T], err error) {
 	if err = req.validate(); err != nil {
 		return
 	}
@@ -55,7 +55,7 @@ func (r Req) validate() error {
 	return nil
 }
 
-type Page[T interface{}] struct {
+type Page[T any] struct {
 	Content     []T   `json:"content"`
 	CurrentSize int   `json:"current_size"`
 	TotalSize   int64 `json:"total_size"`

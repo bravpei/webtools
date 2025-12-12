@@ -65,7 +65,8 @@ func (w *HttpClientWrapper) doWithRetry(req *http.Request) (*http.Response, erro
 	for i := 0; i <= w.retryTimes; i++ {
 		// 每次重试创建新请求体
 		if req.GetBody != nil {
-			if bodyCopy, err := req.GetBody(); err == nil {
+			var bodyCopy io.ReadCloser
+			if bodyCopy, err = req.GetBody(); err == nil {
 				req.Body = bodyCopy
 			}
 		}
