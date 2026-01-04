@@ -41,7 +41,7 @@ func processTasks(ch <-chan DispatcherTask) {
 	for task := range ch {
 		err := task.F(task.Key, task.Data)
 		if err != nil {
-			slog.Error("处理任务失败", "key", task.Key, "error", err)
+			slog.Error("Handle task failed", "key", task.Key, "error", err)
 			continue
 		}
 	}
@@ -52,9 +52,9 @@ func (d *Dispatcher) Dispatch(t DispatcherTask) (err error) {
 	shard := hash(t.Key) % d.numShards
 	select {
 	case d.shards[shard] <- t:
-		slog.Info("提交任务到分片成功", "key", t.Key, "name", d.name, "shard", shard, "channelLength", len(d.shards[shard]))
+		slog.Debug("Dispatch task to shard success", "key", t.Key, "name", d.name, "shard", shard, "channelLength", len(d.shards[shard]))
 	default:
-		err = fmt.Errorf("%s:提交%s任务到分片-%d:失败,chan长度:%d", t.Key, d.name, shard, len(d.shards[shard]))
+		err = fmt.Errorf("%s:Dispatch %s task to shard-%d:failed,chan length:%d", t.Key, d.name, shard, len(d.shards[shard]))
 	}
 	return
 }
@@ -64,7 +64,7 @@ func hash(s string) uint32 {
 	h := fnv.New32a()
 	_, err := h.Write([]byte(s))
 	if err != nil {
-		slog.Error("计算哈希值失败", "error", err)
+		slog.Error("Calculate hash failed", "error", err)
 	}
 	return h.Sum32()
 }
