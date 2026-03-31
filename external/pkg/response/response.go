@@ -11,7 +11,8 @@ const (
 
 type Result struct {
 	Status  Status `json:"status"`
-	Message string `json:"message"`
+	ErrCode string `json:"err_code,omitempty"`
+	Message string `json:"message,omitempty"`
 	Data    any    `json:"data,omitempty"`
 	TraceId string `json:"trace_id,omitempty"`
 }
@@ -31,25 +32,38 @@ func Succeed(data any) Result {
 	}
 }
 
-func Fail(message string, data any) Result {
+func Fail(errCode string, message ...string) Result {
+	msg := ""
+	if len(message) > 0 {
+		msg = message[0]
+	}
 	return Result{
 		Status:  failure,
-		Message: message,
-		Data:    data,
+		ErrCode: errCode,
+		Message: msg,
 	}
 }
 
-func ValidateError(message string) Result {
+func ValidateError(errCode string, message ...string) Result {
+	msg := ""
+	if len(message) > 0 {
+		msg = message[0]
+	}
 	return Result{
 		Status:  validationError,
-		Message: message,
+		ErrCode: errCode,
+		Message: msg,
 	}
 }
 
-func ServerError(err error) Result {
+func ServerError(errCode string, message ...string) Result {
+	msg := ""
+	if len(message) > 0 {
+		msg = message[0]
+	}
 	return Result{
 		Status:  serverError,
-		Message: statusMessages[serverError],
-		Data:    err.Error(),
+		ErrCode: errCode,
+		Message: msg,
 	}
 }
