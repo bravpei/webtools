@@ -76,8 +76,8 @@ func TestWs(t *testing.T) {
 func (s *Server) startPing(ctx *WSContext) {
 	var handler func(ctx *WSContext)
 	handler = func(ctx *WSContext) {
-		if ctx.PongState == true {
-			ctx.PongState = false
+		if ctx.pongState.Load() {
+			ctx.pongState.Store(false)
 			err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
 			if err != nil {
 				slog.Error("发送ping帧失败", "error", err)

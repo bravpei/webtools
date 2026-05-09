@@ -41,7 +41,7 @@ func LoadYamlConfigFile[T any](paths ...string) (cfg T, err error) {
 // LoadFromPaths 从多个路径加载配置
 func (l *ConfigLoader[T]) LoadFromPaths(paths ...string) (T, error) {
 	var cfg T
-	if reflect.TypeOf(cfg).Kind() != reflect.Struct {
+	if reflect.TypeOf(&cfg).Elem().Kind() != reflect.Struct {
 		return cfg, errors.New("配置类型必须是结构体")
 	}
 

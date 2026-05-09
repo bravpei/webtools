@@ -12,7 +12,7 @@ func Template[T any](req Req, handler func() (*gorm.DB, error)) (page Page[T], e
 	}
 
 	var total int64
-	results := make([]T, 0, req.PageSize) // 优化: 初始容量设为0,避免内存浪费
+	results := make([]T, 0, req.PageSize) // 预分配容量，减少扩容开销
 
 	query, err := handler()
 	if err != nil {

@@ -33,36 +33,24 @@ func Succeed(data any) Result {
 }
 
 func Fail(errCode string, message ...string) Result {
-	msg := ""
-	if len(message) > 0 {
-		msg = message[0]
-	}
-	return Result{
-		Status:  failure,
-		ErrCode: errCode,
-		Message: msg,
-	}
+	return buildResult(failure, errCode, message...)
 }
 
 func ValidateError(errCode string, message ...string) Result {
-	msg := ""
-	if len(message) > 0 {
-		msg = message[0]
-	}
-	return Result{
-		Status:  validationError,
-		ErrCode: errCode,
-		Message: msg,
-	}
+	return buildResult(validationError, errCode, message...)
 }
 
 func ServerError(errCode string, message ...string) Result {
+	return buildResult(serverError, errCode, message...)
+}
+
+func buildResult(status Status, errCode string, message ...string) Result {
 	msg := ""
 	if len(message) > 0 {
 		msg = message[0]
 	}
 	return Result{
-		Status:  serverError,
+		Status:  status,
 		ErrCode: errCode,
 		Message: msg,
 	}

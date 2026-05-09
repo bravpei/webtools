@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -31,8 +32,6 @@ type GNetUtil struct {
 // GNetConfig 配置结构体
 type GNetConfig struct {
 	MaxMessageSize   int64
-	ReadTimeout      time.Duration
-	WriteTimeout     time.Duration
 	HandshakeTimeout time.Duration
 	ReaderSize       int
 }
@@ -47,12 +46,13 @@ func WithMaxMessageSize(size int64) GNetUtilOption {
 	}
 }
 
-// WithTimeouts 设置超时时间
-func WithTimeouts(handshake time.Duration) GNetUtilOption {
+// WithHandshakeTimeout 设置 WebSocket 握手超时时间
+func WithHandshakeTimeout(handshake time.Duration) GNetUtilOption {
 	return func(c *GNetConfig) {
 		c.HandshakeTimeout = handshake
 	}
 }
+
 func WithReaderSize(size int) GNetUtilOption {
 	return func(c *GNetConfig) {
 		c.ReaderSize = size
@@ -130,15 +130,20 @@ func (t *TCPContext) Write(data []byte) error {
 	return err
 }
 
-// WSContext WebSocket上下文实现
-type WSContext struct {
-	upgraded  bool
+// frameReader 管理 WebSocket 帧解析的中间状态
+type frameReader struct {
 	curHeader *ws.Header
 	cachedBuf bytes.Buffer
 	opCode    *ws.OpCode
+}
+
+// WSContext WebSocket上下文实现
+type WSContext struct {
+	upgraded  bool
+	fr        frameReader  // 帧解析状态
 	config    *GNetConfig
 	conn      gnet.Conn
-	PongState bool
+	pongState atomic.Bool
 	mutex     sync.Mutex
 	headers   http.Header // 存储HTTP Header
 	query     url.Values  // 存储Query参数
@@ -228,7 +233,7 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 
 // read 读取WebSocket消息
 func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
-	messages, err := w.readFrame(c)
+	messages, err := w.fr.readFrame(c, w.config.MaxMessageSize)
 	if err != nil || messages == nil {
 		return nil, err
 	}
@@ -238,8 +243,8 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 		if message.OpCode.IsControl() {
 			//心跳处理，如果有设置心跳
 			if message.OpCode == ws.OpPong {
-				if !w.PongState {
-					w.PongState = true
+				if !w.pongState.Load() {
+					w.pongState.Store(true)
 				}
 			}
 			if err = wsutil.HandleClientControlMessage(c, message); err != nil {
@@ -249,9 +254,6 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 		}
 
 		if message.OpCode == ws.OpText || message.OpCode == ws.OpBinary {
-			if int64(len(message.Payload)) > w.config.MaxMessageSize {
-				return nil, fmt.Errorf("message size exceeds limit: %d > %d", len(message.Payload), w.config.MaxMessageSize)
-			}
 			payloads = append(payloads, message.Payload)
 		}
 	}
@@ -291,12 +293,12 @@ func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte), ht
 }
 
 // readFrame 读取WebSocket帧
-func (w *WSContext) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
+func (fr *frameReader) readFrame(c gnet.Conn, maxSize int64) ([]wsutil.Message, error) {
 	var messages []wsutil.Message
 
 	for {
 		// 读取头部
-		if w.curHeader == nil {
+		if fr.curHeader == nil {
 			if c.InboundBuffered() < ws.MinHeaderSize {
 				return messages, nil
 			}
@@ -310,19 +312,19 @@ func (w *WSContext) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
 			}
 
 			// 检查消息大小
-			if header.Length > w.config.MaxMessageSize {
-				return nil, fmt.Errorf("message too large: %d > %d", header.Length, w.config.MaxMessageSize)
+			if header.Length > maxSize {
+				return nil, fmt.Errorf("message too large: %d > %d", header.Length, maxSize)
 			}
 
-			w.curHeader = &header
-			if w.opCode == nil {
-				w.opCode = &header.OpCode
+			fr.curHeader = &header
+			if fr.opCode == nil {
+				fr.opCode = &header.OpCode
 			}
 		}
 
 		// 读取消息体
-		if w.curHeader.Length > 0 {
-			dataLength := int(w.curHeader.Length)
+		if fr.curHeader.Length > 0 {
+			dataLength := int(fr.curHeader.Length)
 			if c.InboundBuffered() < dataLength {
 				return messages, nil
 			}
@@ -336,9 +338,14 @@ func (w *WSContext) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
 			}
 
 			// 解密消息
-			cipherReader := wsutil.NewCipherReader(bytes.NewReader(peek), w.curHeader.Mask)
-			if _, err = io.CopyN(&w.cachedBuf, cipherReader, w.curHeader.Length); err != nil {
+			cipherReader := wsutil.NewCipherReader(bytes.NewReader(peek), fr.curHeader.Mask)
+			if _, err = io.CopyN(&fr.cachedBuf, cipherReader, fr.curHeader.Length); err != nil {
 				return nil, fmt.Errorf("decrypt message failed: %v", err)
+			}
+
+			// 检查累积消息大小，防止分帧消息绕过单帧大小限制
+			if int64(fr.cachedBuf.Len()) > maxSize {
+				return nil, fmt.Errorf("message too large after reassembly: %d > %d", fr.cachedBuf.Len(), maxSize)
 			}
 
 			if _, err = c.Discard(dataLength); err != nil {
@@ -347,16 +354,16 @@ func (w *WSContext) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
 		}
 
 		// 处理完整消息
-		if w.curHeader.Fin {
+		if fr.curHeader.Fin {
 			messages = append(messages, wsutil.Message{
-				OpCode:  *w.opCode,
-				Payload: w.cachedBuf.Bytes(),
+				OpCode:  *fr.opCode,
+				Payload: fr.cachedBuf.Bytes(),
 			})
-			w.cachedBuf.Reset()
-			w.opCode = nil
+			fr.cachedBuf.Reset()
+			fr.opCode = nil
 		}
 
-		w.curHeader = nil
+		fr.curHeader = nil
 
 		// 检查是否还有更多数据
 		if c.InboundBuffered() < ws.MinHeaderSize {

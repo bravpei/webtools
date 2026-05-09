@@ -16,6 +16,7 @@ func createLogger(level slog.Level) *slog.Logger {
 		Level: level,
 	}
 	handler := &CustomHandler{
+		level:   level,
 		handler: slog.NewTextHandler(os.Stdout, opts),
 	}
 	logger := slog.New(handler)
@@ -33,11 +34,14 @@ func SetLogLevel(level slog.Level) {
 }
 
 type CustomHandler struct {
-	handler slog.Handler
+	level    slog.Level
+	handler  slog.Handler
+	preAttrs []slog.Attr
+	group    string
 }
 
 func (h *CustomHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.handler.Enabled(ctx, level)
+	return level >= h.level
 }
 
 func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
@@ -70,27 +74,14 @@ func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		r.Message,
 	)
 
-	// 统一处理所有日志属性（包括错误信息）
+	// 添加预挂载属性（来自 WithAttrs）
+	for _, attr := range h.preAttrs {
+		logMsg += formatAttr(attr)
+	}
+
+	// 添加每次调用的属性
 	r.Attrs(func(attr slog.Attr) bool {
-		switch attr.Value.Kind() {
-		case slog.KindString:
-			logMsg += fmt.Sprintf(" %s: %s", attr.Key, attr.Value.String())
-		case slog.KindInt64:
-			logMsg += fmt.Sprintf(" %s: %d", attr.Key, attr.Value.Int64())
-		case slog.KindFloat64:
-			logMsg += fmt.Sprintf(" %s: %f", attr.Key, attr.Value.Float64())
-		case slog.KindBool:
-			logMsg += fmt.Sprintf(" %s: %t", attr.Key, attr.Value.Bool())
-		case slog.KindAny:
-			// 处理错误类型和其他任意类型
-			if err, ok := attr.Value.Any().(error); ok {
-				logMsg += fmt.Sprintf(" %s: %s", attr.Key, err.Error())
-			} else {
-				logMsg += fmt.Sprintf(" %s: %v", attr.Key, attr.Value.Any())
-			}
-		default:
-			logMsg += fmt.Sprintf(" %s: %v", attr.Key, attr.Value)
-		}
+		logMsg += formatAttr(attr)
 		return true
 	})
 
@@ -99,14 +90,42 @@ func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
-func (h *CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &CustomHandler{
-		handler: h.handler.WithAttrs(attrs),
+func formatAttr(attr slog.Attr) string {
+	switch attr.Value.Kind() {
+	case slog.KindString:
+		return fmt.Sprintf(" %s: %s", attr.Key, attr.Value.String())
+	case slog.KindInt64:
+		return fmt.Sprintf(" %s: %d", attr.Key, attr.Value.Int64())
+	case slog.KindFloat64:
+		return fmt.Sprintf(" %s: %f", attr.Key, attr.Value.Float64())
+	case slog.KindBool:
+		return fmt.Sprintf(" %s: %t", attr.Key, attr.Value.Bool())
+	case slog.KindAny:
+		if err, ok := attr.Value.Any().(error); ok {
+			return fmt.Sprintf(" %s: %s", attr.Key, err.Error())
+		}
+		return fmt.Sprintf(" %s: %v", attr.Key, attr.Value.Any())
+	default:
+		return fmt.Sprintf(" %s: %v", attr.Key, attr.Value)
 	}
 }
 
+func (h *CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	newAttrs := make([]slog.Attr, len(h.preAttrs)+len(attrs))
+	copy(newAttrs, h.preAttrs)
+	copy(newAttrs[len(h.preAttrs):], attrs)
+
+	newHandler := *h
+	newHandler.preAttrs = newAttrs
+	return &newHandler
+}
+
 func (h *CustomHandler) WithGroup(name string) slog.Handler {
-	return &CustomHandler{
-		handler: h.handler.WithGroup(name),
+	newHandler := *h
+	if h.group != "" {
+		newHandler.group = h.group + "." + name
+	} else {
+		newHandler.group = name
 	}
+	return &newHandler
 }

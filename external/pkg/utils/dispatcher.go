@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"log/slog"
+	"sync"
 )
 
 // DispatcherTask 包含需要执行的函数和数据
@@ -18,6 +19,7 @@ type Dispatcher struct {
 	name      string
 	shards    []chan DispatcherTask
 	numShards uint32
+	wg        sync.WaitGroup
 }
 
 // NewDispatcher 创建并初始化Dispatcher
@@ -31,7 +33,11 @@ func NewDispatcher(name string, numShards, size uint32) *Dispatcher {
 	for i := range numShards {
 		ch := make(chan DispatcherTask, size) // 带缓冲的通道
 		d.shards[i] = ch
-		go processTasks(ch)
+		d.wg.Add(1)
+		go func() {
+			defer d.wg.Done()
+			processTasks(ch)
+		}()
 	}
 	return d
 }
@@ -45,6 +51,14 @@ func processTasks(ch <-chan DispatcherTask) {
 			continue
 		}
 	}
+}
+
+// Stop 优雅关闭 Dispatcher，关闭所有分片通道并等待处理协程退出
+func (d *Dispatcher) Stop() {
+	for _, ch := range d.shards {
+		close(ch)
+	}
+	d.wg.Wait()
 }
 
 // Dispatch 根据Key分发任务到对应的分片

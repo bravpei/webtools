@@ -137,6 +137,13 @@ func (w *HttpClientWrapper) request(method, api string, header map[string]string
 		return nil, fmt.Errorf("创建请求失败: %v", err)
 	}
 
+	// 设置 GetBody 以支持重试时重新读取请求体
+	if body != nil {
+		req.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(body)), nil
+		}
+	}
+
 	// 设置通用header
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range header {

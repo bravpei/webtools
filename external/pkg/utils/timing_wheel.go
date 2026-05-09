@@ -284,18 +284,6 @@ func (tw *TimingWheel) GetMetrics() *Metrics {
 	return tw.metrics
 }
 
-// CancelTask 取消任务
-func (tw *TimingWheel) CancelTask(taskID string) error {
-	// 实现任务取消逻辑
-	return nil
-}
-
-// UpdateTask 更新任务执行时间
-func (tw *TimingWheel) UpdateTask(taskID string, newDuration time.Duration) error {
-	// 实现任务更新逻辑
-	return nil
-}
-
 func (tw *TimingWheel) processTask(t *task) {
 	if tw.enableMetrics {
 		tw.metrics.mutex.Lock()
